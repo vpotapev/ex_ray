@@ -10,6 +10,8 @@ defmodule ExRay.Trace do
       alias ExRay.Span
       alias ExRay.Store
 
+      @request_id_extractor Application.get_env(:ex_ray, :request_id_extractor)
+
       defp get_opentracing_tags(ctx, predefined_tags) do
         tags = predefined_tags ++ [
           "span.kind": "server",
@@ -77,72 +79,25 @@ defmodule ExRay.Trace do
       @doc """
       Trying to determine request id from context (`ctx` param variable)
       """
-      @spec get_request_id(map()) :: String.t
+      @spec get_request_id(map()) :: String.t | nil
+      def get_request_id(ctx) when is_nil(@request_id_extractor), do: nil
       def get_request_id(ctx) do
-        {:ok, request_id} = ctx
-          |> get_request_id_from_args()
-          |> get_request_id_from_conn()
-          |> throw_arg_err()
-        request_id
-      end
-
-      defp find_request_id_in_arg({:request_id, request_id, _val}), do: request_id
-      defp find_request_id_in_arg(arg) when is_map(arg) do
-        cond do
-          Map.has_key?(arg, :request_id) ->
-            Map.get(arg, :request_id)
-          Map.has_key?(arg, "request_id") ->
-            Map.get(arg, "request_id")
-          Map.has_key?(arg, :payload) ->
-            Map.get(arg.payload, :request_id) || Map.get(arg.payload, "request_id")
-          Map.has_key?(arg, :term) ->
-            Map.get(arg.term, "request_id")
-          true ->
+        case @request_id_extractor.get_request_id(ctx) do
+          {:ok, request_id} ->
+            request_id
+          {:error, ctx} ->
+            if Application.get_env(:ex_ray, :debug, false) do
+              st = Process.info(self(), :current_stacktrace)
+              Logger.error("The request_id value is not found in the next args: #{inspect(ctx.args)}")
+              Logger.error("Stacktrace: #{inspect(st)}")
+            end
+            if Application.get_env(:ex_ray, :raise_when_not_found, false) do
+              raise ArgumentError, "The `request_id` value is missing in a request params"
+            end
             nil
         end
       end
-      defp find_request_id_in_arg(_), do: nil
 
-      defp get_request_id_from_args(ctx) do
-        case Enum.find_value(ctx.args, &find_request_id_in_arg/1) do
-          nil ->
-            {:error, ctx}
-          request_id ->
-            {:ok, request_id}
-        end
-      end
-
-      defp get_request_id_from_conn({:ok, _} = res), do: res
-      defp get_request_id_from_conn({:error, ctx}) do
-        if is_list(ctx.args) and length(ctx.args) > 0 do
-          first_arg = hd(ctx.args)
-          get_request_id_from_conn(first_arg, ctx)
-        else
-          {:error, ctx}
-        end
-      end
-
-      defp get_request_id_from_conn(%Plug.Conn{} = conn, ctx) do
-        h = Plug.Conn.get_req_header(conn, "x-request-id")
-        case h do
-          [] -> {:error, ctx}
-          [request_id] -> {:ok, request_id}
-        end
-      end
-      defp get_request_id_from_conn(_, ctx), do: {:error, ctx}
-
-      @doc """
-      Generate random request_id and link it to the current pid
-      """
-      defp throw_arg_err({:ok, request_id} = res), do: res
-      defp throw_arg_err({:error, ctx}) do
-        if Application.get_env(:ex_ray, :debug, false) do
-          st = Process.info(self(), :current_stacktrace)
-          IO.inspect("The request_id value is not found in the next args: #{inspect(ctx.args)}")
-          IO.inspect("Stacktrace: #{inspect(st)}")
-        end
-        raise ArgumentError, "The `request_id` value is missing in a request params"
-      end
     end
   end
 end

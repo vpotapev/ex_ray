@@ -111,7 +111,7 @@ ExRay using any trace collector that Otter supports. In the following example we
     ExRay uses ETS to track the span chains. Each request will create a new chain that
     will grow and collapse with your function call stack. As such you will need to track a unique
     call ID either by generating a custom ID for each request. If you are using Phoenix, the
-    framework does this for you by using the request_id in the response headers.
+    framework does this for you by using the trace_id in the response headers.
     The ETS table is used to locate the parent span for which to attach to when
     navigating the call stack.
 

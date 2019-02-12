@@ -10,7 +10,7 @@ defmodule ExRay.Trace do
       alias ExRay.Span
       alias ExRay.Store
 
-      @request_id_extractor Application.get_env(:ex_ray, :request_id_extractor)
+      @trace_id_extractor Application.get_env(:ex_ray, :trace_id_extractor)
 
       defp get_opentracing_tags(ctx, predefined_tags) do
         tags = predefined_tags ++ [
@@ -43,8 +43,8 @@ defmodule ExRay.Trace do
           # list of available tags
           tags = get_opentracing_tags(ctx, predefined_tags)
           Logger.debug(fn -> ">>> Starting span for `#{inspect ctx.target}" end)
-          request_id = get_request_id(ctx)
-          span = Span.open(ctx.target, request_id)
+          trace_id = get_trace_id(ctx)
+          span = Span.open(ctx.target, trace_id)
           span = Enum.reduce(tags, span, fn({tag, val}, acc) -> :otter.tag(acc, tag, val) end)
           if Application.get_env(:ex_ray, :logs_enabled, false) do
             :otter.log(span, ">>> #{inspect ctx.target} with args: #{inspect ctx.args}")
@@ -71,28 +71,28 @@ defmodule ExRay.Trace do
             else
               span
             end
-          request_id = get_request_id(ctx)
-          Span.close(res, request_id)
+          trace_id = get_trace_id(ctx)
+          Span.close(res, trace_id)
         end
       end
 
       @doc """
       Trying to determine request id from context (`ctx` param variable)
       """
-      @spec get_request_id(map()) :: String.t | nil
-      def get_request_id(ctx) when is_nil(@request_id_extractor), do: nil
-      def get_request_id(ctx) do
-        case @request_id_extractor.get_request_id(ctx) do
-          {:ok, request_id} ->
-            request_id
+      @spec get_trace_id(map()) :: String.t | nil
+      def get_trace_id(ctx) when is_nil(@trace_id_extractor), do: nil
+      def get_trace_id(ctx) do
+        case @trace_id_extractor.get_trace_id(ctx) do
+          {:ok, trace_id} ->
+            trace_id
           {:error, ctx} ->
             if Application.get_env(:ex_ray, :debug, false) do
               st = Process.info(self(), :current_stacktrace)
-              Logger.error("The request_id value is not found in the next args: #{inspect(ctx.args)}")
+              Logger.error("The trace_id value is not found in the next args: #{inspect(ctx.args)}")
               Logger.error("Stacktrace: #{inspect(st)}")
             end
             if Application.get_env(:ex_ray, :raise_when_not_found, false) do
-              raise ArgumentError, "The `request_id` value is missing in a request params"
+              raise ArgumentError, "The `trace_id` value is missing in a request params"
             end
             nil
         end

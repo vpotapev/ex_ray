@@ -42,12 +42,13 @@ defmodule ExRay.Trace do
           predefined_tags = Application.get_env(:ex_ray, :predefined_tags, [])
           # list of available tags
           tags = get_opentracing_tags(ctx, predefined_tags)
-          Logger.debug(fn -> ">>> Starting span for `#{inspect ctx.target}" end)
           trace_id = get_trace_id(ctx)
+          Logger.debug(fn -> ">>> Starting span for #{inspect ctx.target}; trace_id=#{inspect trace_id}" end)
           span = Span.open(ctx.target, trace_id)
           span = Enum.reduce(tags, span, fn({tag, val}, acc) -> :otter.tag(acc, tag, val) end)
           if Application.get_env(:ex_ray, :logs_enabled, false) do
             :otter.log(span, ">>> #{inspect ctx.target} with args: #{inspect ctx.args}")
+            span
           else
             span
           end
@@ -64,15 +65,16 @@ defmodule ExRay.Trace do
       defp after_fun_body(ctx, span, res) do
         trace_enabled? = Application.get_env(:ex_ray, :enabled, false)
         if trace_enabled? do
-          Logger.debug(fn -> "<<< Closing span for `#{inspect ctx.target}" end)
-          res =
+          trace_id = get_trace_id(ctx)
+          Logger.debug(fn -> "<<< Closing span for #{inspect ctx.target}; trace_id=#{inspect trace_id}" end)
+          span =
             if Application.get_env(:ex_ray, :logs_enabled, false) do
               :otter.log(span, "<<< #{inspect ctx.target} returned #{inspect res}")
+              span
             else
               span
             end
-          trace_id = get_trace_id(ctx)
-          Span.close(res, trace_id)
+          Span.close(span, trace_id)
         end
       end
 

@@ -8,6 +8,7 @@ defmodule ExRay.Store do
 
   @table_name :ex_ray_tracers_table
   @ex_ray_ets_tables_list [@table_name]
+  @logs_enabled Application.get_env(:ex_ray, :logs_store_enabled, false)
 
   require Logger
 
@@ -27,6 +28,9 @@ defmodule ExRay.Store do
   """
   @spec push(String.t, any) :: any
   def push(key, val) when is_binary(key) do
+    if @logs_enabled do
+      Logger.debug(fn -> ">>> Store.push #{inspect key}, #{inspect val}" end)
+    end
     vals = get(key)
 
     if length(vals) > 0 do
@@ -42,6 +46,9 @@ defmodule ExRay.Store do
   """
   @spec pop(String.t) :: any
   def pop(key) when is_binary(key) do
+    if @logs_enabled do
+      Logger.debug(fn -> ">>> Store.pop #{inspect key}" end)
+    end
     [h | t] = get(key)
     :ets.insert(@table_name, {key, t})
     h

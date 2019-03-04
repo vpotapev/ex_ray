@@ -46,11 +46,15 @@ defmodule ExRay.Store do
   """
   @spec pop(String.t) :: any
   def pop(key) when is_binary(key) do
+    v = get(key)
     if @logs_enabled do
-      Logger.debug(fn -> ">>> Store.pop #{inspect key}" end)
+      Logger.debug(fn -> ">>> Store.pop #{inspect key} from #{inspect v}" end)
     end
-    [h | t] = get(key)
+    [h | t] = v
     :ets.insert(@table_name, {key, t})
+    if @logs_enabled do
+      Logger.debug(fn -> ">>> Store.pop #{inspect key}: val=#{inspect h}" end)
+    end
     h
   end
 

@@ -159,11 +159,14 @@ defmodule ExRay do
     end)
 
     ctx = quote do
+      trace_id_extractor = Application.get_env(:ex_ray, :trace_id_extractor)
+      default_trace_id = if is_nil(trace_id_extractor), do: nil, else: trace_id_extractor.get_random_id()
       ctx = %ExRay.Context{
         target: unquote(fun),
         args:   unquote(params),
         guards: unquote(guard),
-        meta:   unquote(meta |> List.first)
+        meta:   unquote(meta |> List.first),
+        default_trace_id: default_trace_id
       }
     end
 

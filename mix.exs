@@ -22,9 +22,8 @@ defmodule ExRay.Mixfile do
   end
 
   def application do
-    [
-      extra_applications: [:logger]
-    ]
+    [mod: {ExRay.Application, []},
+     extra_applications: [:logger]]
   end
 
   defp deps do

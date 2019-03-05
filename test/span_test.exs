@@ -7,7 +7,6 @@ defmodule ExRay.SpanTest do
   alias ExRay.{Store, Span}
 
   setup_all do
-    Store.create
     :ok
   end
 

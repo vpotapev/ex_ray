@@ -209,4 +209,10 @@ defmodule ExRay do
   """
   @spec rand_id() :: integer()
   def rand_id(), do: :otter_lib.id()
+
+  def to_str(v) when is_integer(v), do: Integer.to_string(v)
+  def to_str(v) when is_bitstring(v), do: v
+
+  def to_int(v) when is_bitstring(v), do: String.to_integer(v)
+  def to_int(v) when is_integer(v), do: v
 end

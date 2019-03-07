@@ -22,16 +22,18 @@ defmodule ExRay.SpanTest do
       [],
       :undefined
     }
-    %{span: span}
+    {:ok, %{span: span}}
   end
 
   def f1(ctx) do
     assert ctx.meta[:kind] == :test
-    :f1 |> Span.open("fred")
+    trace_id = 123123123
+    Span.open("span_name", trace_id)
   end
 
   def f2(_ctx, span, _res) do
-    span |> Span.close("fred")
+    trace_id = 123123123
+    Span.close(span, trace_id)
   end
 
   @trace kind: :test
@@ -44,23 +46,27 @@ defmodule ExRay.SpanTest do
   end
 
   test "child span", ctx do
-    Store.push("fred", ctx[:span])
+    trace_id = ExRay.rand_id
+    Store.push(trace_id, ctx.span)
     assert test1(1, 2) == 3
   end
 
   test "open/3", ctx do
-    span = Span.open("fred", "1", ctx[:span])
-    assert Store.current("1") == span
-    span |> Span.close("1")
+    trace_id = ExRay.rand_id
+    span = Span.open("fred", trace_id, ctx.span)
+    assert Store.current(trace_id) == span
+    span |> Span.close(trace_id)
   end
 
   test "open/2" do
-    span = Span.open("fred", "2")
-    assert length(Store.get("2")) == 1
-    span |> Span.close("2")
+    trace_id = ExRay.rand_id
+    span = Span.open("fred", trace_id)
+    assert length(Store.get(trace_id)) == 1
+    span |> Span.close(trace_id)
   end
 
   test "parent_id/1", ctx do
-    assert ctx[:span] |> Span.parent_id == 12387109925362352574
+    IO.inspect ctx.span
+    assert Span.parent_id(ctx.span) == :undefined
   end
 end

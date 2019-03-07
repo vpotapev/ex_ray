@@ -23,7 +23,7 @@ defmodule ExRay.Store do
   Pushes a new span to the span stack. The key must be unique.
   """
   @spec push(String.t, any) :: any
-  def push(key, val) when is_binary(key) do
+  def push(key, val) when is_integer(key) do
     GenServer.call(__MODULE__, {:push, key, val})
   end
 
@@ -31,7 +31,7 @@ defmodule ExRay.Store do
   Pops the top span off the stack.
   """
   @spec pop(String.t) :: any
-  def pop(key) when is_binary(key) do
+  def pop(key) when is_integer(key) do
     GenServer.call(__MODULE__, {:pop, key})
   end
 
@@ -39,7 +39,7 @@ defmodule ExRay.Store do
   Fetch span stack for the given key
   """
   @spec get(String.t) :: [any]
-  def get(key) when is_binary(key) do
+  def get(key) when is_integer(key) do
     GenServer.call(__MODULE__, {:get, key})
   end
 
@@ -47,7 +47,7 @@ defmodule ExRay.Store do
   Fetch the top level span for a given key
   """
   @spec current(String.t) :: [any]
-  def current(key) when is_binary(key) do
+  def current(key) when is_integer(key) do
     GenServer.call(__MODULE__, {:current, key})
   end
 

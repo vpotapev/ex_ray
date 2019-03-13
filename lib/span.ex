@@ -11,9 +11,7 @@ defmodule ExRay.Span do
   the primary key in the ETS table tracking the span chain.
   """
   @spec open(String.t, integer) :: any
-  def open(name, trace_id)
-  when is_bitstring(name) and is_integer(trace_id)
-  do
+  def open(name, trace_id) when is_integer(trace_id) do
     ExRay.Store.push(
       trace_id,
       fn ->
@@ -21,8 +19,8 @@ defmodule ExRay.Span do
           trace_id
           |> ExRay.Store.current_unsafe
           |> case do
-              nil    -> IO.inspect 1; :otter.start(name, trace_id)
-              p_span -> IO.inspect {2, p_span}; :otter.start(name, p_span)
+              nil -> :otter.start(name, trace_id)
+              p_span -> :otter.start(name, p_span)
             end
       end)
   end
@@ -31,9 +29,7 @@ defmodule ExRay.Span do
   Creates a new span with a given parent span
   """
   @spec open(String.t, integer, any) :: any
-  def open(name, trace_id, p_span)
-  when is_bitstring(name) and is_integer(trace_id) and is_tuple(p_span)
-  do
+  def open(name, trace_id, p_span) when is_integer(trace_id) and is_tuple(p_span) do
     ExRay.Store.push(trace_id, fn -> _span = :otter.start(name, p_span) end)
   end
 
@@ -42,9 +38,7 @@ defmodule ExRay.Span do
   span chain.
   """
   @spec close(any, integer) :: any
-  def close(span, trace_id)
-  when is_integer(trace_id) and is_tuple(span)
-  do
+  def close(span, trace_id) when is_integer(trace_id) and is_tuple(span) do
     ExRay.Store.pop(trace_id, fn -> :otter.finish(span); span end)
   end
 

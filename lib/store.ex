@@ -123,9 +123,7 @@ defmodule ExRay.Store do
   @spec push_impl(integer, tuple|function) :: any
   defp push_impl(trace_id, {:span, _, trace_id, _, span_id, _, _, _, _} = span) do
     key = {trace_id, span_id}
-    if @logs_enabled do
-      Logger.debug(fn -> ">>> Store.push #{inspect key}, #{inspect span}" end)
-    end
+    log(">>> Store.push #{inspect key}, #{inspect span}")
     # store into spans stack table
     :ets.insert(@spans_table_name, {key, span})
     # store into top span table
@@ -140,25 +138,11 @@ defmodule ExRay.Store do
   @spec pop_impl(integer, tuple|function) :: any
   defp pop_impl(trace_id, {:span, timestamp, trace_id, name, span_id, parent_span_id, tags, logs, duration} = span) do
     key = {trace_id, span_id}
-    p_key = {trace_id, parent_span_id}
-    if @logs_enabled do
-      Logger.debug(fn -> ">>> Store.pop #{inspect key} from #{inspect span}" end)
-    end
+    log(">>> Store.pop #{inspect key} from #{inspect span}")
     # check if popped elem is on top of the stack
     case current_impl(trace_id) do
-      ^span ->
-        :ets.delete(@spans_table_name, key)
-        if parent_span_id == :undefined do
-          :ets.delete(@top_span_table_name, trace_id)
-        else
-          case :ets.lookup(@spans_table_name, p_key) do
-            [] ->
-              :ok
-            [p_span] when is_tuple(p_span) ->
-              # :ets.insert(@spans_table_name, {p_key, p_span})
-              :ets.insert(@top_span_table_name, {trace_id, p_span})
-          end
-        end
+      {:span, _, ^trace_id, _, ^span_id, _, _, _, _} ->
+        delete_span(trace_id, span)
       _other_span ->
         # mark current span in stack as deleted; all other things aren't changed
         :ets.insert(
@@ -170,6 +154,40 @@ defmodule ExRay.Store do
   defp pop_impl(trace_id, span_fn) do
     {:span, _, _, _, _, _, _, _, _} = span = span_fn.()
     pop_impl(trace_id, span)
+  end
+
+  defp delete_span(trace_id, span) when is_integer(trace_id) and is_tuple(span) do
+    {:span, timestamp, trace_id, name, span_id, parent_span_id, tags, logs, duration} = span
+    key = {trace_id, span_id}
+    :ets.delete(@spans_table_name, key)
+    log("maybe_parent_span_already_deleted(#{trace_id}, #{parent_span_id})")
+    case maybe_parent_span_already_deleted(trace_id, parent_span_id) do
+      nil ->
+        :ets.delete(@top_span_table_name, trace_id)
+      new_top_span ->
+        :ets.insert(@top_span_table_name, {trace_id, new_top_span})
+    end
+  end
+
+  defp maybe_parent_span_already_deleted(trace_id, :undefined) do
+    # this span is root span, so delete current top span for this trace_id
+    nil
+  end
+  defp maybe_parent_span_already_deleted(trace_id, span_id) do
+    key = {trace_id, span_id}
+    case :ets.lookup(@spans_table_name, key) do
+      [] ->
+        raise ArgumentError, "Span with id #{span_id} should exist!"
+      [{key, span}] when is_tuple(span) ->
+        case span do
+          {:span, _, _, _, _, _, _, _, _} ->
+            span
+          {:deleted_span, _, _, _, span_id, parent_span_id, _, _, _} ->
+            key = {trace_id, span_id}
+            :ets.delete(@spans_table_name, key)
+            maybe_parent_span_already_deleted(trace_id, parent_span_id)
+        end
+    end
   end
 
   @spec get_impl(integer) :: [any]
@@ -191,4 +209,12 @@ defmodule ExRay.Store do
     end
   end
 
+  def clean() do
+    :ets.delete_all_objects(@spans_table_name)
+    :ets.delete_all_objects(@top_span_table_name)
+  end
+
+  def log(msg) when is_bitstring(msg) do
+    Logger.debug(msg)
+  end
 end

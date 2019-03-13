@@ -11,6 +11,7 @@ defmodule ExRay.SpanTest do
   end
 
   setup do
+    Store.clean()
     trace_id = ExRay.rand_id
     span = {
       :span,
@@ -27,8 +28,8 @@ defmodule ExRay.SpanTest do
   end
 
   def f1(ctx) do
-    assert ctx.meta[:kind] == :test
-    trace_id = 123123123
+    assert ctx.meta[:kind] in [:test, :test2, :spawned_fn]
+    trace_id = ctx.meta[:trace_id]
     Span.open("span_name", trace_id)
   end
 
@@ -37,8 +38,19 @@ defmodule ExRay.SpanTest do
     Span.close(span, trace_id)
   end
 
-  @trace kind: :test
+  @trace kind: :test, trace_id: 123123123
   def test1(a, b) do
+    a + b
+  end
+
+  @trace kind: :test2, trace_id: 123123123
+  def test2(a, b) do
+    Task.start_link(fn -> spawned_fn(a, b) end)
+    b - a
+  end
+
+  @trace kind: :spawned_fn, trace_id: 123123123
+  def spawned_fn(a, b) do
     a + b
   end
 
@@ -51,16 +63,22 @@ defmodule ExRay.SpanTest do
     assert test1(1, 2) == 3
   end
 
+  test "child span with spawned fn", ctx do
+    Store.push(ctx.trace_id, ctx.span)
+    assert test2(1, 2) == 1
+  end
+
   test "open/3", ctx do
+    Store.push(ctx.trace_id, ctx.span)
     span = Span.open("fred", ctx.trace_id, ctx.span)
     assert Store.current(ctx.trace_id) == span
-    span |> Span.close(ctx.trace_id)
+    Span.close(span, ctx.trace_id)
   end
 
   test "open/2", ctx do
     span = Span.open("fred", ctx.trace_id)
     assert length(Store.get(ctx.trace_id)) == 1
-    span |> Span.close(ctx.trace_id)
+    Span.close(span, ctx.trace_id)
   end
 
   test "parent_id/1", ctx do

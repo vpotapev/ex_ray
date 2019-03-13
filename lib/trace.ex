@@ -22,6 +22,7 @@ defmodule ExRay.Trace do
           cts_id: System.get_env("CCS_ID") || nil,
           cts_host: System.get_env("CCS_HOST") || nil,
           cts: System.get_env("CTS") || nil,
+          args: "#{inspect ctx.args}",
           lc: __MODULE__
         ] |> Enum.filter(fn({_, val}) -> not is_nil(val) end)
       end
@@ -45,10 +46,9 @@ defmodule ExRay.Trace do
           trace_id = get_trace_id(ctx)
           span = Span.open(ctx.target, trace_id)
           if Application.get_env(:ex_ray, :logs_enabled, false) do
-            Logger.debug(fn -> ">>> Starting span #{inspect span} with ctx #{inspect ctx}; trace_id=#{inspect trace_id}" end)
+            :otter.log(span, ">>> Open span #{inspect span} with trace_id=#{inspect trace_id}")
           end
-          span = Enum.reduce(tags, span, fn({tag, val}, acc) -> :otter.tag(acc, tag, val) end)
-          span
+          _span = Enum.reduce(tags, span, fn({tag, val}, acc) -> :otter.tag(acc, tag, val) end)
         end
       end
 
@@ -63,11 +63,11 @@ defmodule ExRay.Trace do
         trace_enabled? = Application.get_env(:ex_ray, :enabled, false)
         if trace_enabled? do
           if Application.get_env(:ex_ray, :logs_enabled, false) do
-            Logger.debug(fn -> "<<< Closing span #{inspect span} with ctx #{inspect ctx} which returned #{inspect res}; ..." end)
+            :otter.log(span, "<<< Close span #{inspect span} which returned #{inspect res}; ...")
           end
           trace_id = get_trace_id(ctx)
           if Application.get_env(:ex_ray, :logs_enabled, false) do
-            Logger.debug(fn -> "<<< ... Closing span #{inspect span}; trace_id=#{inspect trace_id}" end)
+            :otter.log(span, "<<< ... and the span #{inspect span} has trace_id=#{inspect trace_id}")
           end
           Span.close(span, trace_id)
         end

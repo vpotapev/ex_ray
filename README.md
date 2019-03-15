@@ -7,7 +7,8 @@
 ---
 ## Differences between this fork and upstream
 
-* Enabled tracing of functions with underscore:
+* Added `@trace_all` annotation to enable tracing for all function of an particular module.
+* Enabled tracing of functions with underscores as args:
   ```elixir
   def fun1(_, ...), do: ...
   ```
@@ -21,15 +22,28 @@
     ...
   end
   ```
-* Can be traced a function with complex pattern matching like this:
+* Can be traced a function with complex pattern matching in params like this:
   ```elixir
   def fun1(%Struct1{key1: "str1" <> _), do: ...
   ```
-* Added `@trace_all` annotation to enable tracing for all function of an particular module.
 * Bypassed all special functions decorated by `__`:
   ```elixir
   def __fun_a__(param), do: ...
   ```
+
+## Found issues (to be fixed)
+
+* `@trace_all` cannot be used in case of the next code in module:
+  ```elixir
+  def get_chat(%GroupChat{} = chat) do
+    ...
+  end
+
+  def get_chat(chat_id, opts \\ []) do
+    ...
+  end
+  ```
+  In this case you'll see the next error: `** (CompileError) lib/somelib/somemodule.ex:1: def get_chat/1 conflicts with defaults from get_chat/2`
 
 ## Motivation
 

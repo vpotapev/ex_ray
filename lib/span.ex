@@ -9,28 +9,29 @@ defmodule ExRay.Span do
   Create a new root span with a given name and unique request chain ID.
   The request ID uniquely identifies the call chain and will be used as
   the primary key in the ETS table tracking the span chain.
+  Returns started span
   """
   @spec open(String.t, integer) :: any
   def open(name, trace_id) when is_integer(trace_id) do
     ExRay.Store.push(
       trace_id,
       fn ->
-        _span =
-          trace_id
-          |> ExRay.Store.current_unsafe
-          |> case do
-              nil -> :otter.start(name, trace_id)
-              p_span -> :otter.start(name, p_span)
-            end
+        trace_id
+        |> ExRay.Store.current_unsafe
+        |> case do
+            nil -> :otter.start(name, trace_id)
+            p_span -> :otter.start(name, p_span)
+          end
       end)
   end
 
   @doc """
-  Creates a new span with a given parent span
+  Creates a new span with a given parent span.
+  Returns started span
   """
   @spec open(String.t, integer, any) :: any
   def open(name, trace_id, p_span) when is_integer(trace_id) and is_tuple(p_span) do
-    ExRay.Store.push(trace_id, fn -> _span = :otter.start(name, p_span) end)
+    ExRay.Store.push(trace_id, fn -> :otter.start(name, p_span) end)
   end
 
   @doc """

@@ -3,8 +3,9 @@ defmodule ExRay.SpanTest do
   doctest ExRay
 
   use ExRay, pre: :f1, post: :f2
-
   alias ExRay.{Store, Span}
+
+  @trace_id 123123123
 
   setup_all do
     :ok
@@ -38,18 +39,18 @@ defmodule ExRay.SpanTest do
     Span.close(span, trace_id)
   end
 
-  @trace kind: :test, trace_id: 123123123
+  @trace kind: :test, trace_id: @trace_id
   def test1(a, b) do
     a + b
   end
 
-  @trace kind: :test2, trace_id: 123123123
+  @trace kind: :test2, trace_id: @trace_id
   def test2(a, b) do
     Task.start_link(fn -> spawned_fn(a, b) end)
     b - a
   end
 
-  @trace kind: :spawned_fn, trace_id: 123123123
+  @trace kind: :spawned_fn, trace_id: @trace_id
   def spawned_fn(a, b) do
     a + b
   end

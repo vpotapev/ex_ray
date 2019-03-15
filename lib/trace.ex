@@ -45,9 +45,7 @@ defmodule ExRay.Trace do
           tags = get_opentracing_tags(ctx, predefined_tags)
           trace_id = get_trace_id(ctx)
           span = Span.open(ctx.target, trace_id)
-          if Application.get_env(:ex_ray, :logs_enabled, false) do
-            :otter.log(span, ">>> Open span #{inspect span} with trace_id=#{inspect trace_id}")
-          end
+          otter_log(span, ">>> Open span #{inspect span} with trace_id=#{inspect trace_id}")
           _span = Enum.reduce(tags, span, fn({tag, val}, acc) -> :otter.tag(acc, tag, val) end)
         end
       end
@@ -62,13 +60,9 @@ defmodule ExRay.Trace do
       defp after_fun_body(ctx, span, res) do
         trace_enabled? = Application.get_env(:ex_ray, :enabled, false)
         if trace_enabled? do
-          if Application.get_env(:ex_ray, :logs_enabled, false) do
-            :otter.log(span, "<<< Close span #{inspect span} which returned #{inspect res}; ...")
-          end
+          otter_log(span, "<<< Close span #{inspect span} which returned #{inspect res}; ...")
           trace_id = get_trace_id(ctx)
-          if Application.get_env(:ex_ray, :logs_enabled, false) do
-            :otter.log(span, "<<< ... and the span #{inspect span} has trace_id=#{inspect trace_id}")
-          end
+          otter_log(span, "<<< ... and the span #{inspect span} has trace_id=#{inspect trace_id}")
           Span.close(span, trace_id)
         end
       end
@@ -88,13 +82,13 @@ defmodule ExRay.Trace do
               Logger.error("The trace_id value is not found in the next args: #{inspect(ctx.args)}")
               Logger.error("Stacktrace: #{inspect(st)}")
             end
-            if Application.get_env(:ex_ray, :raise_when_not_found, false) do
-              raise ArgumentError, "The `trace_id` value is missing in a request params"
-            end
             nil
         end
       end
 
+      defp otter_log(span, msg) when is_tuple(span) and is_bitstring(msg) do
+        if Application.get_env(:ex_ray, :logs_enabled, false), do: :otter.log(span, msg)
+      end
     end
   end
 end

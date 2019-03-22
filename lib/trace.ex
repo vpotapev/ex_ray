@@ -10,8 +10,6 @@ defmodule ExRay.Trace do
       alias ExRay.Span
       alias ExRay.Store
 
-      @trace_id_extractor Application.get_env(:ex_ray, :trace_id_extractor)
-
       defp get_opentracing_tags(ctx, predefined_tags) do
         tags = predefined_tags ++ [
           "span.kind": "server",
@@ -39,7 +37,8 @@ defmodule ExRay.Trace do
 
       defp before_fun_body(ctx) do
         trace_enabled? = Application.get_env(:ex_ray, :enabled, false)
-        if trace_enabled? do
+        trace_id_extractor = Application.get_env(:ex_ray, :trace_id_extractor)
+        if trace_enabled? and trace_id_extractor != nil do
           predefined_tags = Application.get_env(:ex_ray, :predefined_tags, [])
           # list of available tags
           tags = get_opentracing_tags(ctx, predefined_tags)
@@ -59,7 +58,8 @@ defmodule ExRay.Trace do
 
       defp after_fun_body(ctx, span, res) do
         trace_enabled? = Application.get_env(:ex_ray, :enabled, false)
-        if trace_enabled? do
+        trace_id_extractor = Application.get_env(:ex_ray, :trace_id_extractor)
+        if trace_enabled? and trace_id_extractor != nil do
           otter_log(span, "<<< Close span #{inspect span} which returned #{inspect res}; ...")
           trace_id = get_trace_id(ctx)
           otter_log(span, "<<< ... and the span #{inspect span} has trace_id=#{inspect trace_id}")
@@ -71,9 +71,14 @@ defmodule ExRay.Trace do
       Trying to determine request id from context (`ctx` param variable)
       """
       @spec get_trace_id(map()) :: String.t | nil
-      def get_trace_id(ctx) when is_nil(@trace_id_extractor), do: nil
       def get_trace_id(ctx) do
-        case @trace_id_extractor.get_trace_id(ctx) do
+        trace_id_extractor = Application.get_env(:ex_ray, :trace_id_extractor)
+        get_trace_id_impl(ctx, trace_id_extractor)
+      end
+
+      defp get_trace_id_impl(ctx, nil), do: nil
+      defp get_trace_id_impl(ctx, trace_id_extractor) do
+        case trace_id_extractor.get_trace_id(ctx) do
           {:ok, trace_id} ->
             trace_id
           {:error, ctx} ->

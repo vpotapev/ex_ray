@@ -18,7 +18,7 @@ defmodule ExRay.Trace do
           rts_id: System.get_env("RTS_ID") || nil,
           rts_host: System.get_env("RTS_HOST") || nil,
           cts_id: System.get_env("CCS_ID") || nil,
-          cts_host: System.get_env("CCS_HOST") || nil,
+          ccs_host: System.get_env("CCS_HOST") || nil,
           cts: System.get_env("CTS") || nil,
           args: "#{inspect ctx.args}",
           lc: __MODULE__

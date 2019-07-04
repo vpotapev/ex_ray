@@ -105,15 +105,22 @@ defmodule ExRay do
     Module.delete_attribute(env.module, :ex_ray_funs)
     Module.delete_attribute(env.module, :trace_all)
 
-    Application.get_all_env(:ex_ray)
-    |> Keyword.get(:active, true)
-    |> case do
-      true ->
-        funs
-        |> Enum.reduce({nil, 0, []}, fn(f, acc) -> generate(env, f, acc) end)
-        |> elem(2)
-      false -> :ok
-    end
+    {defoverrides_list, reversed_defs_list} =
+      Application.get_all_env(:ex_ray)
+        |> Keyword.get(:active, true)
+        |> case do
+          true ->
+            funs
+            |> Enum.reduce({nil, 0, []}, fn(f, acc) -> generate(env, f, acc) end)
+            |> elem(2)
+          false -> :ok
+        end
+        |> Enum.reverse
+        |> Enum.split_with(fn {a, _b, _c} -> a == :defoverridable end)
+    # NOTE: final processing to place reversed list of function definitions (since
+    # initially it is a reversed sequence so pattern-matched parameters
+    # in functions won't work in this case) after the defoverrides list.
+    defoverrides_list ++ reversed_defs_list
   end
 
   defp generate(env, {_k, f, a, g, _b, meta, _type}, {prev, arity, acc}) do
@@ -153,8 +160,9 @@ defmodule ExRay do
 
     params = args
     |> ExRay.Args.expand_ignored()
-    |> Enum.map(fn(
-      {:\\, _, [a, _]}) -> a
+    |> Enum.map(fn
+      ({:\\, _, [a, _]}) -> a # remove a default value from ctx and args
+      ({:=, _, [_a, b | _]}) -> b # remove a pattern-matched expression from ctx and args
       (arg)             -> arg
     end)
 

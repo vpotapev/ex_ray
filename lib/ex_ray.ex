@@ -203,7 +203,12 @@ defmodule ExRay do
             super(unquote_splicing(params))
           rescue
             err -> unquote(post)(ctx, pre, err)
-                   throw err
+                   reraise err, __STACKTRACE__
+          catch
+            :exit, err -> unquote(post)(ctx, pre, err)
+                          exit err
+            :throw, err -> unquote(post)(ctx, pre, err)
+                           throw err
           else
             res -> unquote(post)(ctx, pre, res)
                    res

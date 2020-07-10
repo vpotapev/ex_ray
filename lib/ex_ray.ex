@@ -226,6 +226,7 @@ defmodule ExRay do
   def to_str(v) when is_integer(v), do: Integer.to_string(v)
   def to_str(v) when is_bitstring(v), do: v
 
+  def to_int("nil"), do: 0
   def to_int(v) when is_bitstring(v), do: String.to_integer(v)
   def to_int(v) when is_integer(v), do: v
 end
